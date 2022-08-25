@@ -1,0 +1,137 @@
+String listKodeParkir[] = {"A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8"};
+String characterBooking = "0123456789ABCD";
+
+class Parkir {
+  private:
+    List<String> kodeParkir;
+    List<String> kodeBooking;
+    List<DateTime> waktuBooking;
+    List<int> lamaBooking;
+
+  public:
+    Parkir() {
+    }
+    void getParkir(int index,char *destination) {
+//      char kodeParkirBooking[7] = "";
+//      char waktuBookingChar[15]="";
+//      DateTime waktuBook = waktuBooking.getValue(index);
+//      sprintf(waktuBookingChar,"%04d%02d%02d%02d%02d%02d",waktuBook.year(),waktuBook.month(),waktuBook.day(),waktuBook.hour(),waktuBook.minute(),waktuBook.second());
+//      String kode = kodeParkir.getValue(index)+kodeBooking.getValue(index);
+//      for(int i=0;i<14;i++){
+//        kode+=waktuBookingChar[i];
+//      }
+//      kode.toCharArray(destination,21);
+        parkirToString(kodeParkir.getValue(index),kodeBooking.getValue(index),waktuBooking.getValue(index),destination);
+
+    }
+    void parkirToString(String kodeParkir,String kodeBook,DateTime waktuBook, char *destination){
+      char kodeParkirBooking[7] = "";
+      char waktuBookingChar[15]="";
+      sprintf(waktuBookingChar,"%04d%02d%02d%02d%02d%02d",waktuBook.year(),waktuBook.month(),waktuBook.day(),waktuBook.hour(),waktuBook.minute(),waktuBook.second());
+      String kode = kodeParkir+kodeBook;
+      for(int i=0;i<14;i++){
+        kode+=waktuBookingChar[i];
+      }
+      //kenapa 21 ? karena data yang ingin dikirim adalah 20 karakter. dan tiap array karakter harus memiliki null-terminating \0 karakter di akhir arraynya oleh karena itu memerlukan 21
+      kode.toCharArray(destination,21);      
+    }
+    boolean checkParkir(String kodePark, DateTime waktuBook, int lamaBook) {
+      unsigned int waktuBookUnixTime = waktuBook.unixtime();
+      for (int i = 0; i < this->kodeParkir.getSize(); i++) {
+        if (this->kodeParkir.getValue(i) == kodePark &&
+            (this->waktuBooking.getValue(i).unixtime() + 3600U * this->lamaBooking.getValue(i) > waktuBookUnixTime) &&
+            (waktuBookUnixTime + 3600U * (lamaBook==999 ? 3:lamaBook) > this->waktuBooking.getValue(i).unixtime())) {
+          return true;
+        }
+      }
+      return false;
+    }
+    //check apakah waktu sekarang untuk parkir dengan index tertentu apakah bisa masuk
+    boolean checkParkirIfInRangeWaktuBook(int index,DateTime now){
+      DateTime waktuBook = this->waktuBooking.getValue(index);
+      int lamaBook = this->lamaBooking.getValue(index);
+      // jika dia merupakan parkir offline, berarti harus dalam range 3 jam.
+      if(now.unixtime()>=waktuBook.unixtime()&&(waktuBook.unixtime()+3600U*(lamaBook==999 ? 3:lamaBook))>now.unixtime()){
+        return true;
+      }
+      return false;
+    }
+
+    boolean checkKodeBooking(String kodeBook) {
+      for (int i = 0; i < this->kodeBooking.getSize(); i++) {
+        if (kodeBook == this->kodeBooking.getValue(i)) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    int indexPlusOneListFromKodeBooking(String kodeBook) {
+      for (int i = 0; i < this->kodeBooking.getSize(); i++) {
+        if (kodeBook == this->kodeBooking.getValue(i)) {
+          return i + 1;
+        }
+      }
+      return 0;
+    }
+
+    void tambahParkir(String kodePark, String kodeBook, DateTime waktuBook, int lamaBook) {
+      this->kodeParkir.add(kodePark);
+      this->kodeBooking.add(kodeBook);
+      this->waktuBooking.add(waktuBook);
+      this->lamaBooking.add(lamaBook);
+      Serial.println("Parkir ditambahkan");
+    }
+
+    void removeParkir(String kodeBook) {
+      int i = 0;
+      boolean ada = false;
+      for (i = 0; i < this->kodeBooking.getSize(); i++) {
+        if (kodeBook == this->kodeBooking.getValue(i)) {
+          ada = true;
+          break;
+        }
+      }
+      if (ada) {
+        this->kodeParkir.remove(i);
+        this->kodeBooking.remove(i);
+        this->waktuBooking.remove(i);
+        this->lamaBooking.remove(i);
+      }
+      else {
+        Serial.println("Kode booking " + kodeBook + " tidak tersedia");
+      }
+    }
+
+    boolean checkAndTambahParkirOffline(DateTime timeNow,char *destination) {
+      long mulai = random(0, 15);
+      for (; mulai < this->kodeParkir.getSize() + mulai; mulai++) {
+        //3 jam karena maksimal parkir offline adalah 3 jam
+        if (!checkParkir(listKodeParkir[mulai % 16], timeNow, 3)) {
+          String kodeBooking = kodeBookingGenerator();
+          parkirToString(listKodeParkir[mulai % 16], kodeBooking, timeNow,destination);
+          //lamaBook adalah 999 untuk menandakan bahwa parkir tersebut dibooking secara offline
+          tambahParkir(listKodeParkir[mulai % 16], kodeBooking, timeNow, 999);
+          return true;
+        }
+      }
+      return false;
+    }
+
+    String kodeBookingGenerator() {
+      boolean ketemu = false;
+      String kodeBooking = "";
+      int pointer;
+      while (!ketemu) {
+        for (int i = 0; i < 4; i++) {
+          pointer = random(0, 13);
+          kodeBooking += characterBooking.charAt(pointer);
+        }
+        if (!checkKodeBooking(kodeBooking)) {
+          ketemu = true;
+          Serial.println("Kode Booking baru" + kodeBooking);
+        }
+      }
+      return kodeBooking;
+    }
+};
